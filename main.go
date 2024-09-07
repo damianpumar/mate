@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"minimal-http-server/database"
 	"minimal-http-server/films"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
+	"github.com/gofiber/fiber/v2/middleware/monitor"
 )
 
 type User struct {
@@ -16,11 +18,25 @@ type User struct {
 }
 
 func main() {
+	version := flag.Bool("version", false, "prints the version")
+	metrics := flag.Bool("metrics", false, "enable /metrics endpoint")
+
+	flag.Parse()
+
+	if *version {
+		println("v1.0.0")
+		return
+	}
+
 	app := fiber.New()
 
 	app.Use(encryptcookie.New(encryptcookie.Config{
 		Key: encryptcookie.GenerateKey(),
 	}))
+
+	if *metrics {
+		app.Get("/metrics", monitor.New(monitor.Config{Title: "Web server metrics"}))
+	}
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		films := films.GetFilms()
