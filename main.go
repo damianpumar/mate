@@ -5,11 +5,13 @@ import (
 	"flag"
 	"minimal-http-server/database"
 	"minimal-http-server/films"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/gofiber/fiber/v2/middleware/monitor"
+	"github.com/golang/glog"
 )
 
 type User struct {
@@ -20,6 +22,7 @@ type User struct {
 func main() {
 	version := flag.Bool("version", false, "prints the version")
 	metrics := flag.Bool("metrics", false, "enable /metrics endpoint")
+	production := flag.Bool("production", false, "enable production mode")
 
 	flag.Parse()
 
@@ -27,6 +30,21 @@ func main() {
 		println("v1.0.0")
 		return
 	}
+
+	if *production {
+		flag.Lookup("stderrthreshold").Value.Set("INFO")
+
+		if err := os.Mkdir("logs", 0755); err != nil {
+			glog.Error("Failed to create logs directory")
+		}
+
+		flag.Lookup("log_dir").Value.Set("./logs")
+		glog.Info("Production mode enabled")
+	}
+
+	glog.Info("Starting server...")
+
+	defer glog.Flush()
 
 	app := fiber.New()
 
