@@ -18,8 +18,36 @@ func (s *Router) Routes() *http.ServeMux {
 	return s.router
 }
 
-func (s *Router) Get(path string, handler func(c *Context)) {
-	s.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		handler(NewContext(w, r))
+func (r *Router) Get(path string, handler func(c *Context)) {
+	r.addRoute(http.MethodGet, path, handler)
+}
+
+func (s *Router) Post(path string, handler func(c *Context)) {
+	s.addRoute(http.MethodPost, path, handler)
+}
+
+func (s *Router) Put(path string, handler func(c *Context)) {
+	s.addRoute(http.MethodPut, path, handler)
+}
+
+func (s *Router) Delete(path string, handler func(c *Context)) {
+	s.addRoute(http.MethodDelete, path, handler)
+}
+
+func (s *Router) Patch(path string, handler func(c *Context)) {
+	s.addRoute(http.MethodPatch, path, handler)
+}
+
+func (s *Router) addRoute(method, path string, handler func(c *Context)) {
+	s.router.HandleFunc(path, func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == method {
+			if req.URL.Path != path {
+				http.NotFound(w, req)
+				return
+			}
+			handler(NewContext(w, req))
+		} else {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		}
 	})
 }

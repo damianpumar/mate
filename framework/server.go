@@ -31,3 +31,7 @@ func (s *Server) Start(port *string) {
 func (s *Server) Get(path string, handler HandlerFunc) {
 	s.router.Get(path, handler)
 }
+
+func (s *Server) Post(path string, handler HandlerFunc) {
+	s.router.Post(path, handler)
+}
