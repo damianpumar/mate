@@ -35,3 +35,11 @@ func (s *Server) Get(path string, handler HandlerFunc) {
 func (s *Server) Post(path string, handler HandlerFunc) {
 	s.router.Post(path, handler)
 }
+
+func (s *Server) Put(path string, handler HandlerFunc) {
+	s.router.Put(path, handler)
+}
+
+func (s *Server) Delete(path string, handler HandlerFunc) {
+	s.router.Delete(path, handler)
+}

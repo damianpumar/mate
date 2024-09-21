@@ -18,11 +18,10 @@ var (
 func main() {
 	flag.Parse()
 
-	cookie := framework.NewSecureCookie("my-secret-key-1234-222222")
+	cookie := framework.NewSecureCookie("my-secret")
 	server := framework.NewServer()
 
 	server.Get("/", framework.LoggingMiddleware(func(c *framework.Context) {
-
 		c.Response.WithJson(200, Example{Name: "World"})
 	}))
 
@@ -50,6 +49,14 @@ func main() {
 		cookie.ClearCookie(c.Response, "session")
 		c.Response.WithText(200, "Cookie deleted")
 	}))
+
+	server.Post("/post", func(c *framework.Context) {
+		data := &Example{}
+
+		c.Request.ParseBody(data)
+
+		c.Response.WithJson(200, data)
+	})
 
 	server.Start(port)
 }

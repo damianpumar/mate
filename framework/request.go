@@ -11,3 +11,9 @@ func (r *Request) GetQueryParam(key string) string {
 
 	return values.Get(key)
 }
+
+func (r *Request) ParseBody(data interface{}) error {
+
+	return nil
+
+}

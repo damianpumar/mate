@@ -40,14 +40,18 @@ func (s *Router) Patch(path string, handler func(c *Context)) {
 
 func (s *Router) addRoute(method, path string, handler func(c *Context)) {
 	s.router.HandleFunc(path, func(w http.ResponseWriter, req *http.Request) {
-		if req.Method == method {
-			if req.URL.Path != path {
-				http.NotFound(w, req)
-				return
-			}
-			handler(NewContext(w, req))
-		} else {
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		if req.URL.Path != path {
+			http.NotFound(w, req)
+
+			return
 		}
+
+		if req.Method != method {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+
+			return
+		}
+
+		handler(NewContext(w, req))
 	})
 }
