@@ -2,13 +2,15 @@ package main
 
 import (
 	"flag"
+	"minimal/database"
 	"minimal/framework"
+	"minimal/server"
 	"net/http"
 	"time"
 )
 
 type Example struct {
-	Name string
+	Name string `json:"name" db:"main"`
 }
 
 var (
@@ -18,11 +20,17 @@ var (
 func main() {
 	flag.Parse()
 
+	server := server.New()
+
+	db := database.Connect()
+
 	cookie := framework.NewSecureCookie("my-secret")
-	server := framework.NewServer()
 
 	server.Get("/", framework.LoggingMiddleware(func(c *framework.Context) {
-		c.Response.WithJson(200, Example{Name: "World"})
+
+		data := db.Get("users")
+
+		c.Response.WithJson(200, data)
 	}))
 
 	server.Get("/cookie", framework.LoggingMiddleware(func(c *framework.Context) {
@@ -54,6 +62,8 @@ func main() {
 		data := &Example{}
 
 		c.Request.ParseBody(data)
+
+		db.Set("users", *data)
 
 		c.Response.WithJson(200, data)
 	})
