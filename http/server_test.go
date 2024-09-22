@@ -3,16 +3,14 @@ package http_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"minimal/database"
 	"minimal/framework"
-	fwk "minimal/http"
+	h "minimal/http"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 type Example struct {
@@ -21,11 +19,10 @@ type Example struct {
 }
 
 func TestServer(t *testing.T) {
-
 	os.Mkdir("database", 0755)
 	defer os.RemoveAll("database")
 
-	server := fwk.New()
+	server := h.New()
 	db := database.Connect()
 
 	server.Get("/", func(c *framework.Context) {
@@ -61,8 +58,7 @@ func TestServer(t *testing.T) {
 
 		server.ServeHTTP(w, req)
 
-		assert.Equal(t, 200, w.Code)
-		assert.JSONEq(t, `{"id":"1","name":"John Doe"}`, w.Body.String())
+		assertEqual(t, w, `{"id":"1","name":"John Doe"}`)
 	})
 
 	t.Run("GET /", func(t *testing.T) {
@@ -79,9 +75,7 @@ func TestServer(t *testing.T) {
 		getW := httptest.NewRecorder()
 		server.ServeHTTP(getW, get)
 
-		assert.Equal(t, 200, getW.Code)
-		fmt.Println(getW.Body.String())
-		assert.JSONEq(t, `[{"id":"1","name":"John Doe"}]`, getW.Body.String())
+		assertEqual(t, getW, `[{"id":"1","name":"John Doe"}]`)
 	})
 
 	t.Run("GET /{id}", func(t *testing.T) {
@@ -98,8 +92,32 @@ func TestServer(t *testing.T) {
 		getW := httptest.NewRecorder()
 		server.ServeHTTP(getW, get)
 
-		assert.Equal(t, 200, getW.Code)
-		fmt.Println(getW.Body.String())
-		assert.JSONEq(t, `{"id":"1","name":"John Doe"}`, getW.Body.String())
+		assertEqual(t, getW, `{"id":"1","name":"John Doe"}`)
 	})
+}
+
+func assertEqual(t *testing.T, rec *httptest.ResponseRecorder, expected string) {
+	if rec.Code != 200 {
+		t.Errorf("Expected status code 200, got %d", rec.Code)
+	}
+
+	var expectedJSON, actualJSON interface{}
+
+	err := json.Unmarshal([]byte(expected), &expectedJSON)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal expected JSON: %s", err)
+	}
+
+	err = json.Unmarshal(rec.Body.Bytes(), &actualJSON)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal actual JSON: %s", err)
+	}
+
+	// Print the actual and expected JSON for debugging
+	t.Logf("Expected JSON: %+v", expectedJSON)
+	t.Logf("Actual JSON: %+v", actualJSON)
+
+	if !reflect.DeepEqual(expectedJSON, actualJSON) {
+		t.Errorf("Expected JSON %+v, got %+v", expectedJSON, actualJSON)
+	}
 }
