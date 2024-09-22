@@ -2,51 +2,53 @@ package database
 
 import (
 	"encoding/json"
+	"io"
 	"log"
-
-	"github.com/patrickmn/go-cache"
-	"github.com/shubhexists/go-json-db/models"
+	"os"
 )
 
-type Database struct {
-	db    *models.Driver
-	cache *cache.Cache
+type DB struct {
 }
 
-func Connect() Database {
-	db, cache, err := models.New("./db")
+func Connect() DB {
+	file, err := os.Open("database/database.json")
+	if err != nil {
+		log.Fatalf("Failed to open file: %s", err)
+	}
+
+	defer file.Close()
+
+	byteValue, err := io.ReadAll(io.Reader(file))
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to read file: %s", err)
 	}
 
-	return Database{db, cache}
-}
-
-func (d *Database) Set(key string, value interface{}) {
-	d.db.Write(key, value)
-}
-
-func (d *Database) Get(key string) []interface{} {
-	records, err := d.db.ReadAll(key, d.cache, false)
+	var db DB
+	err = json.Unmarshal(byteValue, &db)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to unmarshal JSON: %s", err)
 	}
 
-	results := make([]interface{}, len(records))
+	return db
+}
 
-	for k, v := range records {
-		var result interface{}
-
-		err := json.Unmarshal([]byte(v), &result)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		results[k] = result
+func (db DB) Save() {
+	file, err := os.OpenFile("database/database.json", os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		log.Fatalf("Failed to open file: %s", err)
 	}
 
-	return results
+	defer file.Close()
+
+	byteValue, err := json.MarshalIndent(db, "", " ")
+	if err != nil {
+		log.Fatalf("Failed to marshal JSON: %s", err)
+	}
+
+	_, err = file.Write(byteValue)
+	if err != nil {
+		log.Fatalf("Failed to write to file: %s", err)
+	}
 }
