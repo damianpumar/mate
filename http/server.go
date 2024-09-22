@@ -29,6 +29,10 @@ func (s *Server) Start(port *string) {
 	}
 }
 
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.router.ServeHTTP(w, r)
+}
+
 func (s *Server) Get(path string, handler framework.HandlerFunc) {
 	s.router.Get(path, handler)
 }

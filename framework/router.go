@@ -47,3 +47,7 @@ func (s *Router) addRoute(method string, path string, handler func(c *Context)) 
 			handler(NewContext(w, req))
 		})
 }
+
+func (s *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.router.ServeHTTP(w, r)
+}

@@ -20,6 +20,8 @@ func Fetch() *Data {
 			log.Fatalf("Failed to create database: %s", err)
 		}
 
+		file.WriteString("{}")
+
 		file.Close()
 	}
 
