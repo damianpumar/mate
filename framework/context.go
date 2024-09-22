@@ -39,3 +39,7 @@ func (c *Context) JSON(status int, data interface{}) {
 func (c *Context) Status(status int) {
 	c.Response.Status(status)
 }
+
+func (c *Context) Error(status int, err error) {
+	c.Response.Error(status, err)
+}

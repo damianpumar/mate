@@ -4,8 +4,7 @@ import (
 	"flag"
 	"minimal/database"
 	"minimal/framework"
-	"minimal/server"
-	"net/http"
+	"minimal/http"
 	"time"
 )
 
@@ -21,16 +20,17 @@ var (
 func main() {
 	flag.Parse()
 
-	server := server.New()
+	server := http.New()
 
 	db := database.Connect()
 
 	cookie := framework.NewSecureCookie("my-secret")
 
 	server.Get("/cookie", framework.LoggingMiddleware(func(c *framework.Context) {
-		err := cookie.SetEncryptedCookie(c.Response, "session", "user12345", 30*time.Second)
-		if err != nil {
-			http.Error(c.Response, err.Error(), http.StatusInternalServerError)
+		if err := cookie.SetEncryptedCookie(c.Response, "session", "user12345", 30*time.Second); err != nil {
+
+			c.Error(500, err)
+
 			return
 		}
 
@@ -39,8 +39,10 @@ func main() {
 
 	server.Get("/read-cookie", framework.LoggingMiddleware(func(c *framework.Context) {
 		value, err := cookie.GetEncryptedCookie(c.Request.Request, "session")
+
 		if err != nil {
-			http.Error(c.Response, err.Error(), http.StatusInternalServerError)
+			c.Error(500, err)
+
 			return
 		}
 
