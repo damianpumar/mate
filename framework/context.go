@@ -20,6 +20,10 @@ func (c *Context) GetQueryParam(key string) string {
 	return c.Request.GetQueryParam(key)
 }
 
+func (c *Context) GetPathValue(key string) string {
+	return c.Request.GetPathValue(key)
+}
+
 func (c *Context) BindBody(data interface{}) error {
 	return c.Request.BindBody(data)
 }

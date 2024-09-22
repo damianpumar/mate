@@ -10,7 +10,8 @@ import (
 )
 
 type Example struct {
-	Name string `json:"name" db:"main"`
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 var (
@@ -27,7 +28,7 @@ func main() {
 	cookie := framework.NewSecureCookie("my-secret")
 
 	server.Get("/", framework.LoggingMiddleware(func(c *framework.Context) {
-		data := db.Get("users")
+		data := db.Select("users")
 
 		c.JSON(200, data)
 	}))
@@ -62,7 +63,15 @@ func main() {
 
 		c.BindBody(&data)
 
-		db.Set("users", data)
+		db.Insert("users", data)
+
+		c.JSON(200, data)
+	})
+
+	server.Get("/{id}", func(c *framework.Context) {
+		id := c.GetPathValue("id")
+
+		data := db.SelectById("users", id)
 
 		c.JSON(200, data)
 	})
