@@ -27,12 +27,6 @@ func main() {
 
 	cookie := framework.NewSecureCookie("my-secret")
 
-	server.Get("/", framework.LoggingMiddleware(func(c *framework.Context) {
-		data := db.Select("users")
-
-		c.JSON(200, data)
-	}))
-
 	server.Get("/cookie", framework.LoggingMiddleware(func(c *framework.Context) {
 		err := cookie.SetEncryptedCookie(c.Response, "session", "user12345", 30*time.Second)
 		if err != nil {
@@ -58,12 +52,30 @@ func main() {
 		c.Response.Text(200, "Cookie deleted")
 	}))
 
-	server.Post("/post", func(c *framework.Context) {
+	server.Get("/", framework.LoggingMiddleware(func(c *framework.Context) {
+		data := db.Select("users")
+
+		c.JSON(200, data)
+	}))
+
+	server.Post("/", func(c *framework.Context) {
 		data := Example{}
 
 		c.BindBody(&data)
 
 		db.Insert("users", data)
+
+		c.JSON(200, data)
+	})
+
+	server.Put("/{id}", func(c *framework.Context) {
+		id := c.GetPathValue("id")
+
+		data := Example{}
+
+		c.BindBody(&data)
+
+		db.Update("users", id, data)
 
 		c.JSON(200, data)
 	})
@@ -74,6 +86,18 @@ func main() {
 		data := db.SelectById("users", id)
 
 		c.JSON(200, data)
+	})
+
+	server.Delete("/{id}", func(c *framework.Context) {
+		id := c.GetPathValue("id")
+
+		if ok := db.Delete("users", id); !ok {
+			c.Status(404)
+
+			return
+		}
+
+		c.Text(200, "Deleted")
 	})
 
 	server.Start(port)

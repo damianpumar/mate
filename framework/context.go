@@ -35,3 +35,7 @@ func (c *Context) Text(status int, text string) {
 func (c *Context) JSON(status int, data interface{}) {
 	c.Response.JSON(status, data)
 }
+
+func (c *Context) Status(status int) {
+	c.Response.Status(status)
+}

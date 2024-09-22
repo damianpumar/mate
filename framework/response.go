@@ -24,3 +24,7 @@ func (r *Response) Text(status int, message string) {
 
 	r.Write([]byte(message))
 }
+
+func (r *Response) Status(status int) {
+	r.WriteHeader(status)
+}

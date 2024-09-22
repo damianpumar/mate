@@ -1,6 +1,7 @@
 package framework
 
 import (
+	"fmt"
 	"net/http"
 )
 
@@ -38,14 +39,11 @@ func (s *Router) Patch(path string, handler func(c *Context)) {
 	s.addRoute(http.MethodPatch, path, handler)
 }
 
-func (s *Router) addRoute(method, path string, handler func(c *Context)) {
-	s.router.HandleFunc(path, func(w http.ResponseWriter, req *http.Request) {
-		if req.Method != method {
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+func (s *Router) addRoute(method string, path string, handler func(c *Context)) {
+	pattern := fmt.Sprintf("%s %s", method, path)
 
-			return
-		}
-
-		handler(NewContext(w, req))
-	})
+	s.router.HandleFunc(
+		pattern, func(w http.ResponseWriter, req *http.Request) {
+			handler(NewContext(w, req))
+		})
 }
