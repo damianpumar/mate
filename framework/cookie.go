@@ -67,10 +67,20 @@ func (sc *SecureCookie) SetEncryptedCookie(w http.ResponseWriter, name, value st
 
 func (sc *SecureCookie) GetEncryptedCookie(req *http.Request, name string) (string, error) {
 	cookie, err := req.Cookie(name)
+
 	if err != nil {
 		return "", err
 	}
+
 	return sc.decrypt(cookie.Value)
+}
+
+func (sc *SecureCookie) HasCookie(req *http.Request, name string) bool {
+	if _, err := sc.GetEncryptedCookie(req, name); err != nil {
+		return false
+	}
+
+	return true
 }
 
 func (sc *SecureCookie) ClearCookie(w http.ResponseWriter, name string) {
