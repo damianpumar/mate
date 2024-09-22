@@ -42,7 +42,7 @@ func (db *DB) SelectById(table string, id string) interface{} {
 	return nil
 }
 
-func (db *DB) Insert(table string, record interface{}) {
+func (db *DB) Insert(table string, record interface{}) bool {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
@@ -53,9 +53,11 @@ func (db *DB) Insert(table string, record interface{}) {
 	records = append(records, record)
 
 	data.Commit(table, records)
+
+	return true
 }
 
-func (db *DB) Update(table string, id string, record interface{}) {
+func (db *DB) Update(table string, id string, record interface{}) bool {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
@@ -73,11 +75,13 @@ func (db *DB) Update(table string, id string, record interface{}) {
 		if recordMap["id"] == id {
 			records[i] = record
 
-			break
+			data.Commit(table, records)
+
+			return true
 		}
 	}
 
-	data.Commit(table, records)
+	return false
 }
 
 func (db *DB) Delete(table string, id string) bool {

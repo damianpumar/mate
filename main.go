@@ -58,6 +58,14 @@ func main() {
 		c.JSON(200, data)
 	}))
 
+	server.Get("/{id}", func(c *framework.Context) {
+		id := c.GetPathValue("id")
+
+		data := db.SelectById("users", id)
+
+		c.JSON(200, data)
+	})
+
 	server.Post("/", func(c *framework.Context) {
 		data := Example{}
 
@@ -75,15 +83,11 @@ func main() {
 
 		c.BindBody(&data)
 
-		db.Update("users", id, data)
+		if ok := db.Update("users", id, data); !ok {
+			c.Status(404)
 
-		c.JSON(200, data)
-	})
-
-	server.Get("/{id}", func(c *framework.Context) {
-		id := c.GetPathValue("id")
-
-		data := db.SelectById("users", id)
+			return
+		}
 
 		c.JSON(200, data)
 	})
