@@ -19,8 +19,6 @@ type Example struct {
 }
 
 func TestServer(t *testing.T) {
-	os.Mkdir("database", 0755)
-	defer os.RemoveAll("database")
 
 	server := h.New()
 	db := database.Connect()
@@ -50,6 +48,9 @@ func TestServer(t *testing.T) {
 	})
 
 	t.Run("POST /", func(t *testing.T) {
+		os.Mkdir("database", 0755)
+		defer os.RemoveAll("database")
+
 		body, _ := json.Marshal(Example{Id: "1", Name: "John Doe"})
 		req, _ := http.NewRequest("POST", "/", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
@@ -62,6 +63,9 @@ func TestServer(t *testing.T) {
 	})
 
 	t.Run("GET /", func(t *testing.T) {
+		os.Mkdir("database", 0755)
+		defer os.RemoveAll("database")
+
 		body, _ := json.Marshal(Example{Id: "1", Name: "John Doe"})
 		post, _ := http.NewRequest("POST", "/", bytes.NewBuffer(body))
 		post.Header.Set("Content-Type", "application/json")
@@ -79,6 +83,9 @@ func TestServer(t *testing.T) {
 	})
 
 	t.Run("GET /{id}", func(t *testing.T) {
+		os.Mkdir("database", 0755)
+		defer os.RemoveAll("database")
+
 		body, _ := json.Marshal(Example{Id: "1", Name: "John Doe"})
 		post, _ := http.NewRequest("POST", "/", bytes.NewBuffer(body))
 		post.Header.Set("Content-Type", "application/json")
