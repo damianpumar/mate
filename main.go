@@ -27,10 +27,9 @@ func main() {
 	cookie := framework.NewSecureCookie("my-secret")
 
 	server.Get("/", framework.LoggingMiddleware(func(c *framework.Context) {
-
 		data := db.Get("users")
 
-		c.Response.WithJson(200, data)
+		c.JSON(200, data)
 	}))
 
 	server.Get("/cookie", framework.LoggingMiddleware(func(c *framework.Context) {
@@ -40,7 +39,7 @@ func main() {
 			return
 		}
 
-		c.Response.WithText(200, "Cookie set")
+		c.Text(200, "Cookie set")
 	}))
 
 	server.Get("/read-cookie", framework.LoggingMiddleware(func(c *framework.Context) {
@@ -50,22 +49,22 @@ func main() {
 			return
 		}
 
-		c.Response.WithText(200, value)
+		c.Text(200, value)
 	}))
 
 	server.Get("/delete-cookie", framework.LoggingMiddleware(func(c *framework.Context) {
 		cookie.ClearCookie(c.Response, "session")
-		c.Response.WithText(200, "Cookie deleted")
+		c.Response.Text(200, "Cookie deleted")
 	}))
 
 	server.Post("/post", func(c *framework.Context) {
-		data := &Example{}
+		data := Example{}
 
-		c.Request.ParseBody(data)
+		c.BindBody(&data)
 
-		db.Set("users", *data)
+		db.Set("users", data)
 
-		c.Response.WithJson(200, data)
+		c.JSON(200, data)
 	})
 
 	server.Start(port)
