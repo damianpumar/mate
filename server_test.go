@@ -5,106 +5,48 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"reflect"
 	"testing"
 
 	"github.com/damianpumar/mate"
-	"github.com/damianpumar/mate/database"
 )
 
-type Example struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+type ServerTest struct {
+	Serve *mate.Server
 }
 
-func TestServer(t *testing.T) {
+func createTestFramework() *ServerTest {
 	server := mate.New()
-	db := database.Connect()
 
-	server.Get("/", func(c *mate.Context) {
-		data := db.Select("users")
-
-		c.JSON(200, data)
-	})
-
-	server.Get("/{id}", func(c *mate.Context) {
-		id := c.GetPathValue("id")
-
-		data := db.SelectById("users", id)
-
-		c.JSON(200, data)
-	})
-
-	server.Post("/", func(c *mate.Context) {
-		data := Example{}
-
-		c.BindBody(&data)
-
-		db.Insert("users", data)
-
-		c.JSON(200, data)
-	})
-
-	t.Run("POST /", func(t *testing.T) {
-		os.Mkdir("database", 0755)
-		defer os.Remove("database/database.json")
-
-		body, _ := json.Marshal(Example{Id: "1", Name: "John Doe"})
-		req, _ := http.NewRequest("POST", "/", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-
-		w := httptest.NewRecorder()
-
-		server.ServeHTTP(w, req)
-
-		assertEqual(t, w, `{"id":"1","name":"John Doe"}`)
-	})
-
-	t.Run("GET /", func(t *testing.T) {
-		os.Mkdir("database", 0755)
-		defer os.Remove("database/database.json")
-
-		body, _ := json.Marshal(Example{Id: "1", Name: "John Doe"})
-		post, _ := http.NewRequest("POST", "/", bytes.NewBuffer(body))
-		post.Header.Set("Content-Type", "application/json")
-		postW := httptest.NewRecorder()
-
-		server.ServeHTTP(postW, post)
-
-		get, _ := http.NewRequest("GET", "/", nil)
-		get.Header.Set("Content-Type", "application/json")
-
-		getW := httptest.NewRecorder()
-		server.ServeHTTP(getW, get)
-
-		assertEqual(t, getW, `[{"id":"1","name":"John Doe"}]`)
-	})
-
-	t.Run("GET /{id}", func(t *testing.T) {
-		os.Mkdir("database", 0755)
-		defer os.Remove("database/database.json")
-
-		body, _ := json.Marshal(Example{Id: "1", Name: "John Doe"})
-		post, _ := http.NewRequest("POST", "/", bytes.NewBuffer(body))
-		post.Header.Set("Content-Type", "application/json")
-		postW := httptest.NewRecorder()
-
-		server.ServeHTTP(postW, post)
-
-		get, _ := http.NewRequest("GET", "/1", nil)
-		get.Header.Set("Content-Type", "application/json")
-
-		getW := httptest.NewRecorder()
-		server.ServeHTTP(getW, get)
-
-		assertEqual(t, getW, `{"id":"1","name":"John Doe"}`)
-	})
+	return &ServerTest{Serve: server}
 }
 
-func assertEqual(t *testing.T, rec *httptest.ResponseRecorder, expected string) {
-	if rec.Code != 200 {
-		t.Errorf("Expected status code 200, got %d", rec.Code)
+func (s *ServerTest) get(path string) *httptest.ResponseRecorder {
+	req, _ := http.NewRequest("GET", path, nil)
+	req.Header.Set("Content-Type", "application/json")
+
+	res := httptest.NewRecorder()
+
+	s.Serve.ServeHTTP(res, req)
+
+	return res
+}
+
+func (s *ServerTest) post(path string, body interface{}) *httptest.ResponseRecorder {
+	bodyParsed, _ := json.Marshal(body)
+	req, _ := http.NewRequest("POST", path, bytes.NewBuffer(bodyParsed))
+	req.Header.Set("Content-Type", "application/json")
+
+	res := httptest.NewRecorder()
+
+	s.Serve.ServeHTTP(res, req)
+
+	return res
+}
+
+func (s *ServerTest) assertEqual(t *testing.T, res *httptest.ResponseRecorder, expected string) {
+	if res.Code != 200 {
+		t.Errorf("Expected status code 200, got %d", res.Code)
 	}
 
 	var expectedJSON, actualJSON interface{}
@@ -114,7 +56,7 @@ func assertEqual(t *testing.T, rec *httptest.ResponseRecorder, expected string) 
 		t.Fatalf("Failed to unmarshal expected JSON: %s", err)
 	}
 
-	err = json.Unmarshal(rec.Body.Bytes(), &actualJSON)
+	err = json.Unmarshal(res.Body.Bytes(), &actualJSON)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal actual JSON: %s", err)
 	}
@@ -126,4 +68,49 @@ func assertEqual(t *testing.T, rec *httptest.ResponseRecorder, expected string) 
 	if !reflect.DeepEqual(expectedJSON, actualJSON) {
 		t.Errorf("Expected JSON %+v, got %+v", expectedJSON, actualJSON)
 	}
+}
+
+func TestServer(t *testing.T) {
+	type Example struct {
+		Id   string `json:"id"`
+		Name string `json:"name"`
+	}
+
+	testServer := createTestFramework()
+
+	testServer.Serve.Get("/", func(c *mate.Context) {
+		c.JSON(200, []Example{{Id: "1", Name: "John Doe"}})
+	})
+
+	testServer.Serve.Get("/{id}", func(c *mate.Context) {
+		id := c.GetPathValue("id")
+
+		c.JSON(200, Example{Id: id, Name: "John Doe"})
+	})
+
+	testServer.Serve.Post("/", func(c *mate.Context) {
+		data := Example{}
+
+		c.BindBody(&data)
+
+		c.JSON(200, data)
+	})
+
+	t.Run("GET /", func(t *testing.T) {
+		res := testServer.get("/")
+
+		testServer.assertEqual(t, res, `[{"id":"1","name":"John Doe"}]`)
+	})
+
+	t.Run("POST /", func(t *testing.T) {
+		res := testServer.post("/", Example{Id: "1", Name: "John Doe"})
+
+		testServer.assertEqual(t, res, `{"id":"1","name":"John Doe"}`)
+	})
+
+	t.Run("GET /{id}", func(t *testing.T) {
+		res := testServer.get("/20")
+
+		testServer.assertEqual(t, res, `{"id":"20","name":"John Doe"}`)
+	})
 }
