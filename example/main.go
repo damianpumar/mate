@@ -106,5 +106,11 @@ func main() {
 		c.Text(200, "Deleted")
 	})
 
+	server.Group("/hello", func(g *mate.Group) {
+		g.Get("/world", func(c *mate.Context) {
+			c.Text(200, "Hello, World!")
+		})
+	})
+
 	server.Start(*port)
 }

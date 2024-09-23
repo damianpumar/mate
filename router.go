@@ -3,6 +3,7 @@ package mate
 import (
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 type HandlerFunc func(c *Context)
@@ -41,6 +42,10 @@ func (s *Router) Patch(path string, handler func(c *Context)) {
 
 func (s *Router) addRoute(method string, path string, handler func(c *Context)) {
 	pattern := fmt.Sprintf("%s %s", method, path)
+
+	if len(path) > 1 && path[len(path)-1] == '/' {
+		pattern = strings.TrimSuffix(pattern, "/")
+	}
 
 	s.router.HandleFunc(
 		pattern, func(w http.ResponseWriter, req *http.Request) {

@@ -70,12 +70,12 @@ func (s *ServerTest) assertEqual(t *testing.T, res *httptest.ResponseRecorder, e
 	}
 }
 
-func TestServer(t *testing.T) {
-	type Example struct {
-		Id   string `json:"id"`
-		Name string `json:"name"`
-	}
+type Example struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
 
+func TestServer(t *testing.T) {
 	testServer := createTestFramework()
 
 	testServer.Serve.Get("/", func(c *mate.Context) {
@@ -110,6 +110,48 @@ func TestServer(t *testing.T) {
 
 	t.Run("GET /{id}", func(t *testing.T) {
 		res := testServer.get("/20")
+
+		testServer.assertEqual(t, res, `{"id":"20","name":"John Doe"}`)
+	})
+}
+
+func TestServerGroup(t *testing.T) {
+	testServer := createTestFramework()
+
+	testServer.Serve.Group("/api", func(g *mate.Group) {
+		g.Get("/", func(c *mate.Context) {
+			c.JSON(200, []Example{{Id: "1", Name: "John Doe"}})
+		})
+
+		g.Get("/{id}", func(c *mate.Context) {
+			id := c.GetPathValue("id")
+
+			c.JSON(200, Example{Id: id, Name: "John Doe"})
+		})
+
+		g.Post("/", func(c *mate.Context) {
+			data := Example{}
+
+			c.BindBody(&data)
+
+			c.JSON(200, data)
+		})
+	})
+
+	t.Run("GET /api", func(t *testing.T) {
+		res := testServer.get("/api")
+
+		testServer.assertEqual(t, res, `[{"id":"1","name":"John Doe"}]`)
+	})
+
+	t.Run("POST /api", func(t *testing.T) {
+		res := testServer.post("/api", Example{Id: "1", Name: "John Doe"})
+
+		testServer.assertEqual(t, res, `{"id":"1","name":"John Doe"}`)
+	})
+
+	t.Run("GET /api/{id}", func(t *testing.T) {
+		res := testServer.get("/api/20")
 
 		testServer.assertEqual(t, res, `{"id":"20","name":"John Doe"}`)
 	})
