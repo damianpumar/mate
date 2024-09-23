@@ -2,8 +2,9 @@ package database
 
 import (
 	"log"
-	"mate/database/file"
 	"sync"
+
+	"github.com/damianpumar/mate/database/file"
 )
 
 type DB struct {

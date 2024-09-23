@@ -3,13 +3,14 @@ package mate_test
 import (
 	"bytes"
 	"encoding/json"
-	"mate"
-	"mate/database"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/damianpumar/mate"
+	"github.com/damianpumar/mate/database"
 )
 
 type Example struct {
