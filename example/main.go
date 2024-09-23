@@ -106,5 +106,5 @@ func main() {
 		c.Text(200, "Deleted")
 	})
 
-	server.Start(port)
+	server.Start(*port)
 }

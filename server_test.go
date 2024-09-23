@@ -19,7 +19,6 @@ type Example struct {
 }
 
 func TestServer(t *testing.T) {
-
 	server := mate.New()
 	db := database.Connect()
 
@@ -49,7 +48,7 @@ func TestServer(t *testing.T) {
 
 	t.Run("POST /", func(t *testing.T) {
 		os.Mkdir("database", 0755)
-		defer os.RemoveAll("database")
+		defer os.Remove("database/database.json")
 
 		body, _ := json.Marshal(Example{Id: "1", Name: "John Doe"})
 		req, _ := http.NewRequest("POST", "/", bytes.NewBuffer(body))
@@ -64,7 +63,7 @@ func TestServer(t *testing.T) {
 
 	t.Run("GET /", func(t *testing.T) {
 		os.Mkdir("database", 0755)
-		defer os.RemoveAll("database")
+		defer os.Remove("database/database.json")
 
 		body, _ := json.Marshal(Example{Id: "1", Name: "John Doe"})
 		post, _ := http.NewRequest("POST", "/", bytes.NewBuffer(body))
@@ -84,7 +83,7 @@ func TestServer(t *testing.T) {
 
 	t.Run("GET /{id}", func(t *testing.T) {
 		os.Mkdir("database", 0755)
-		defer os.RemoveAll("database")
+		defer os.Remove("database/database.json")
 
 		body, _ := json.Marshal(Example{Id: "1", Name: "John Doe"})
 		post, _ := http.NewRequest("POST", "/", bytes.NewBuffer(body))
