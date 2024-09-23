@@ -14,6 +14,7 @@ const PATH = "database/database.json"
 
 func Fetch() *Data {
 	if _, err := os.Stat(PATH); os.IsNotExist(err) {
+		os.Mkdir("database", 0755)
 		file, err := os.Create(PATH)
 
 		if err != nil {
