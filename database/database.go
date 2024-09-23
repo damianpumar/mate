@@ -2,7 +2,7 @@ package database
 
 import (
 	"log"
-	"minimal/database/file"
+	"mate/database/file"
 	"sync"
 )
 

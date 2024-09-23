@@ -2,7 +2,7 @@ package http
 
 import (
 	"fmt"
-	"minimal/framework"
+	"mate/framework"
 	"net/http"
 	"os"
 )

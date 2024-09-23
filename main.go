@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"minimal/database"
-	"minimal/framework"
-	"minimal/http"
+	"mate/database"
+	"mate/framework"
+	"mate/http"
 	"time"
 )
 

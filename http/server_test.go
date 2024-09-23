@@ -3,9 +3,9 @@ package http_test
 import (
 	"bytes"
 	"encoding/json"
-	"minimal/database"
-	"minimal/framework"
-	h "minimal/http"
+	"mate/database"
+	"mate/framework"
+	h "mate/http"
 	"net/http"
 	"net/http/httptest"
 	"os"
