@@ -1,115 +1,110 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
-	"minimal-http-server/database"
-	"minimal-http-server/films"
+	"mate/database"
+	"mate/framework"
+	"mate/http"
 	"time"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
-	"github.com/gofiber/fiber/v2/middleware/monitor"
 )
 
-type User struct {
-	Username string `json:"username"`
-	Role     string `json:"role"`
+type Example struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 var (
-	version = flag.Bool("version", false, "prints the version")
-	metrics = flag.Bool("metrics", false, "enable /metrics endpoint")
+	port = flag.String("port", "8080", "Port to listen on")
 )
 
 func main() {
 	flag.Parse()
 
-	if *version {
-		println("v1.0.0")
-		return
-	}
+	server := http.New()
 
-	app := fiber.New()
+	db := database.Connect()
 
-	app.Use(encryptcookie.New(encryptcookie.Config{
-		Key: encryptcookie.GenerateKey(),
+	cookie := framework.NewSecureCookie("my-secret")
+
+	server.Get("/cookie", framework.LoggingMiddleware(func(c *framework.Context) {
+		if err := cookie.SetEncryptedCookie(c.Response, "session", "user12345", 30*time.Second); err != nil {
+
+			c.Error(500, err)
+
+			return
+		}
+
+		c.Text(200, "Cookie set")
 	}))
 
-	if *metrics {
-		app.Get("/metrics", monitor.New(monitor.Config{Title: "Web server metrics"}))
-	}
+	server.Get("/read-cookie", framework.LoggingMiddleware(func(c *framework.Context) {
+		value, err := cookie.GetEncryptedCookie(c.Request.Request, "session")
 
-	app.Get("/", func(c *fiber.Ctx) error {
-		films := films.GetFilms()
-
-		return c.JSON(films)
-	})
-
-	app.Get("/login", func(c *fiber.Ctx) error {
-		sample := &User{
-			Username: "admin",
-			Role:     "admin",
-		}
-
-		sampleJSON, _ := json.Marshal(sample)
-
-		c.Cookie(&fiber.Cookie{
-			Name:     "session",
-			Value:    string(sampleJSON),
-			HTTPOnly: true,
-			Expires:  time.Now().Add(10 * time.Second),
-		})
-
-		return c.JSON(fiber.Map{
-			"message": "Logged in",
-		})
-	})
-
-	app.Get("/logout", func(c *fiber.Ctx) error {
-		c.ClearCookie("session")
-
-		return c.JSON(fiber.Map{
-			"message": "Logged out",
-		})
-	})
-
-	app.Get("/cookie", func(c *fiber.Ctx) error {
-		user := c.Cookies("session")
-
-		if user == "" {
-			return c.Status(403).JSON(fiber.Map{
-				"error": "Unauthorized",
-			})
-		}
-
-		return c.JSON(user)
-	})
-
-	app.Get("/:id", func(c *fiber.Ctx) error {
-		id := c.Params("id")
-
-		film, err := films.GetFilm(id)
 		if err != nil {
+			c.Error(500, err)
 
-			return c.Status(404).JSON(fiber.Map{
-				"error": "Film not found",
-			})
+			return
 		}
 
-		return c.JSON(film)
+		c.Text(200, value)
+	}))
+
+	server.Get("/delete-cookie", framework.LoggingMiddleware(func(c *framework.Context) {
+		cookie.ClearCookie(c.Response, "session")
+		c.Response.Text(200, "Cookie deleted")
+	}))
+
+	server.Get("/", framework.LoggingMiddleware(func(c *framework.Context) {
+		data := db.Select("users")
+
+		c.JSON(200, data)
+	}))
+
+	server.Get("/{id}", func(c *framework.Context) {
+		id := c.GetPathValue("id")
+
+		data := db.SelectById("users", id)
+
+		c.JSON(200, data)
 	})
 
-	app.Post("/", func(c *fiber.Ctx) error {
-		film := database.Film{
-			Title:    c.FormValue("title"),
-			Director: c.FormValue("director"),
+	server.Post("/", func(c *framework.Context) {
+		data := Example{}
+
+		c.BindBody(&data)
+
+		db.Insert("users", data)
+
+		c.JSON(200, data)
+	})
+
+	server.Put("/{id}", func(c *framework.Context) {
+		id := c.GetPathValue("id")
+
+		data := Example{}
+
+		c.BindBody(&data)
+
+		if ok := db.Update("users", id, data); !ok {
+			c.Status(404)
+
+			return
 		}
 
-		films.AddFilm(film)
-
-		return c.JSON(film)
+		c.JSON(200, data)
 	})
 
-	app.Listen(":3000")
+	server.Delete("/{id}", func(c *framework.Context) {
+		id := c.GetPathValue("id")
+
+		if ok := db.Delete("users", id); !ok {
+			c.Status(404)
+
+			return
+		}
+
+		c.Text(200, "Deleted")
+	})
+
+	server.Start(port)
 }
