@@ -1,19 +1,18 @@
-package http
+package mate
 
 import (
 	"fmt"
-	"mate/framework"
 	"net/http"
 	"os"
 )
 
 type Server struct {
-	router *framework.Router
+	router *Router
 }
 
 func New() *Server {
 	return &Server{
-		router: framework.NewRouter(),
+		router: NewRouter(),
 	}
 }
 
@@ -33,18 +32,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
-func (s *Server) Get(path string, handler framework.HandlerFunc) {
+func (s *Server) Get(path string, handler HandlerFunc) {
 	s.router.Get(path, handler)
 }
 
-func (s *Server) Post(path string, handler framework.HandlerFunc) {
+func (s *Server) Post(path string, handler HandlerFunc) {
 	s.router.Post(path, handler)
 }
 
-func (s *Server) Put(path string, handler framework.HandlerFunc) {
+func (s *Server) Put(path string, handler HandlerFunc) {
 	s.router.Put(path, handler)
 }
 
-func (s *Server) Delete(path string, handler framework.HandlerFunc) {
+func (s *Server) Delete(path string, handler HandlerFunc) {
 	s.router.Delete(path, handler)
 }

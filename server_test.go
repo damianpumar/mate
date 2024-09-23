@@ -1,11 +1,10 @@
-package http_test
+package mate_test
 
 import (
 	"bytes"
 	"encoding/json"
+	"mate"
 	"mate/database"
-	"mate/framework"
-	h "mate/http"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,16 +19,16 @@ type Example struct {
 
 func TestServer(t *testing.T) {
 
-	server := h.New()
+	server := mate.New()
 	db := database.Connect()
 
-	server.Get("/", func(c *framework.Context) {
+	server.Get("/", func(c *mate.Context) {
 		data := db.Select("users")
 
 		c.JSON(200, data)
 	})
 
-	server.Get("/{id}", func(c *framework.Context) {
+	server.Get("/{id}", func(c *mate.Context) {
 		id := c.GetPathValue("id")
 
 		data := db.SelectById("users", id)
@@ -37,7 +36,7 @@ func TestServer(t *testing.T) {
 		c.JSON(200, data)
 	})
 
-	server.Post("/", func(c *framework.Context) {
+	server.Post("/", func(c *mate.Context) {
 		data := Example{}
 
 		c.BindBody(&data)

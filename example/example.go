@@ -2,9 +2,8 @@ package main
 
 import (
 	"flag"
+	"mate"
 	"mate/database"
-	"mate/framework"
-	"mate/http"
 	"time"
 )
 
@@ -20,13 +19,13 @@ var (
 func main() {
 	flag.Parse()
 
-	server := http.New()
+	server := mate.New()
 
 	db := database.Connect()
 
-	cookie := framework.NewSecureCookie("my-secret")
+	cookie := mate.NewSecureCookie("my-secret")
 
-	server.Get("/cookie", framework.LoggingMiddleware(func(c *framework.Context) {
+	server.Get("/cookie", mate.LoggingMiddleware(func(c *mate.Context) {
 		if err := cookie.SetEncryptedCookie(c.Response, "session", "user12345", 30*time.Second); err != nil {
 
 			c.Error(500, err)
@@ -37,7 +36,7 @@ func main() {
 		c.Text(200, "Cookie set")
 	}))
 
-	server.Get("/read-cookie", framework.LoggingMiddleware(func(c *framework.Context) {
+	server.Get("/read-cookie", mate.LoggingMiddleware(func(c *mate.Context) {
 		value, err := cookie.GetEncryptedCookie(c.Request.Request, "session")
 
 		if err != nil {
@@ -49,18 +48,18 @@ func main() {
 		c.Text(200, value)
 	}))
 
-	server.Get("/delete-cookie", framework.LoggingMiddleware(func(c *framework.Context) {
+	server.Get("/delete-cookie", mate.LoggingMiddleware(func(c *mate.Context) {
 		cookie.ClearCookie(c.Response, "session")
 		c.Response.Text(200, "Cookie deleted")
 	}))
 
-	server.Get("/", framework.LoggingMiddleware(func(c *framework.Context) {
+	server.Get("/", mate.LoggingMiddleware(func(c *mate.Context) {
 		data := db.Select("users")
 
 		c.JSON(200, data)
 	}))
 
-	server.Get("/{id}", func(c *framework.Context) {
+	server.Get("/{id}", func(c *mate.Context) {
 		id := c.GetPathValue("id")
 
 		data := db.SelectById("users", id)
@@ -68,7 +67,7 @@ func main() {
 		c.JSON(200, data)
 	})
 
-	server.Post("/", func(c *framework.Context) {
+	server.Post("/", func(c *mate.Context) {
 		data := Example{}
 
 		c.BindBody(&data)
@@ -78,7 +77,7 @@ func main() {
 		c.JSON(200, data)
 	})
 
-	server.Put("/{id}", func(c *framework.Context) {
+	server.Put("/{id}", func(c *mate.Context) {
 		id := c.GetPathValue("id")
 
 		data := Example{}
@@ -94,7 +93,7 @@ func main() {
 		c.JSON(200, data)
 	})
 
-	server.Delete("/{id}", func(c *framework.Context) {
+	server.Delete("/{id}", func(c *mate.Context) {
 		id := c.GetPathValue("id")
 
 		if ok := db.Delete("users", id); !ok {

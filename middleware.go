@@ -1,4 +1,4 @@
-package framework
+package mate
 
 type Middleware func(HandlerFunc) HandlerFunc
 
