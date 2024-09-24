@@ -112,5 +112,12 @@ func main() {
 		})
 	})
 
+	server.Get("/template", func(c *mate.Context) {
+		c.Render(200, "index.html", &Example{
+			Id:   "1",
+			Name: "Damián",
+		})
+	})
+
 	server.Start(*port)
 }

@@ -43,3 +43,7 @@ func (c *Context) Status(status int) {
 func (c *Context) Error(status int, err error) {
 	c.Response.Error(status, err)
 }
+
+func (c *Context) Render(status int, template string, data interface{}) {
+	c.Response.Render(status, template, data)
+}

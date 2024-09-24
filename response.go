@@ -2,6 +2,7 @@ package mate
 
 import (
 	"encoding/json"
+	"html/template"
 	"net/http"
 )
 
@@ -35,4 +36,15 @@ func (r *Response) Error(status int, err error) {
 	r.WriteHeader(status)
 
 	r.Write([]byte(err.Error()))
+}
+
+func (r *Response) Render(status int, file string, data interface{}) {
+	r.Header().Set("Content-Type", "text/html")
+	r.WriteHeader(status)
+
+	html := template.Must(template.ParseFiles(file))
+
+	if err := html.Execute(r, data); err != nil {
+		http.Error(r, err.Error(), http.StatusInternalServerError)
+	}
 }
