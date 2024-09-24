@@ -119,5 +119,8 @@ func main() {
 		})
 	})
 
+	server.Folder("/static", "./static")
+	server.File("/json", "./static/hello.json")
+
 	server.Start(*port)
 }

@@ -52,6 +52,14 @@ func (s *Server) Patch(path string, handler HandlerFunc) {
 	s.router.Patch(path, handler)
 }
 
+func (s *Server) Folder(path string, dir string) {
+	s.router.Folder(path, dir)
+}
+
+func (s *Server) File(path string, file string) {
+	s.router.File(path, file)
+}
+
 type Group struct {
 	path   string
 	router *Router
@@ -84,4 +92,14 @@ func (g *Group) Delete(path string, handler HandlerFunc) {
 func (g *Group) Patch(path string, handler HandlerFunc) {
 	groupedPath := g.path + path
 	g.router.Patch(groupedPath, handler)
+}
+
+func (g *Group) Folder(path string, dir string) {
+	groupedPath := g.path + path
+	g.router.Folder(groupedPath, dir)
+}
+
+func (g *Group) File(path string, file string) {
+	groupedPath := g.path + path
+	g.router.File(groupedPath, file)
 }
