@@ -25,7 +25,7 @@ func (db *DB) Select(table string) []interface{} {
 	return records
 }
 
-func (db *DB) SelectById(table string, id string) interface{} {
+func (db *DB) SelectById(table string, id string) (any, bool) {
 	records := db.Select(table)
 
 	for _, record := range records {
@@ -36,11 +36,11 @@ func (db *DB) SelectById(table string, id string) interface{} {
 		}
 
 		if recordMap["id"] == id {
-			return record
+			return record, true
 		}
 	}
 
-	return nil
+	return nil, false
 }
 
 func (db *DB) Insert(table string, record interface{}) bool {
