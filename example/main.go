@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"time"
 
@@ -63,7 +64,11 @@ func main() {
 	server.Get("/{id}", func(c *mate.Context) {
 		id := c.GetPathValue("id")
 
-		data := db.SelectById("users", id)
+		data, ok := db.SelectById("users", id)
+
+		if !ok {
+			c.Error(404, errors.New("user not found"))
+		}
 
 		c.JSON(200, data)
 	})
