@@ -1,11 +1,14 @@
 package database
 
 import (
-	"log"
 	"sync"
 
 	"github.com/damianpumar/mate/database/file"
 )
+
+type Identifiable interface {
+	GetId() string
+}
 
 type DB struct {
 	mu sync.Mutex
@@ -18,37 +21,53 @@ func Connect() DB {
 }
 
 func (db *DB) Select(table string) []interface{} {
-	data := file.Fetch()
-
-	records := data.Records(table)
-
-	return records
-}
-
-func (db *DB) SelectById(table string, id string) (any, bool) {
-	records := db.Select(table)
-
-	for _, record := range records {
-		recordMap, ok := record.(map[string]interface{})
-
-		if !ok {
-			log.Fatalf("Failed to assert record as map[string]interface{}")
-		}
-
-		if recordMap["id"] == id {
-			return record, true
-		}
-	}
-
-	return nil, false
-}
-
-func (db *DB) Insert(table string, record interface{}) bool {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
 	data := file.Fetch()
+	records := data.Records(table)
+	return records
+}
 
+func SelectById[T Identifiable](db *DB, table string, id string) (T, bool) {
+	records := SelectBy[T](db, table, func(record T) bool {
+		return record.GetId() == id
+	})
+
+	if len(records) > 0 {
+		return records[0], true
+	}
+
+	var zero T
+	return zero, false
+}
+
+func SelectBy[T Identifiable](db *DB, table string, predicate func(T) bool) []T {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	records := db.Select(table)
+	var results []T
+
+	for _, record := range records {
+		typedRecord, ok := record.(T)
+		if !ok {
+			continue
+		}
+
+		if predicate(typedRecord) {
+			results = append(results, typedRecord)
+		}
+	}
+
+	return results
+}
+
+func Insert[T Identifiable](db *DB, table string, record T) bool {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	data := file.Fetch()
 	records := data.Records(table)
 
 	records = append(records, record)
@@ -58,26 +77,22 @@ func (db *DB) Insert(table string, record interface{}) bool {
 	return true
 }
 
-func (db *DB) Update(table string, id string, record interface{}) bool {
+func Update[T Identifiable](db *DB, table string, id string, record T) bool {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
 	data := file.Fetch()
-
 	records := data.Records(table)
 
 	for i, r := range records {
-		recordMap, ok := r.(map[string]interface{})
-
+		typedRecord, ok := r.(T)
 		if !ok {
-			log.Fatalf("Failed to assert record as map[string]interface{}")
+			continue
 		}
 
-		if recordMap["id"] == id {
+		if typedRecord.GetId() == id {
 			records[i] = record
-
 			data.Commit(table, records)
-
 			return true
 		}
 	}
@@ -85,26 +100,56 @@ func (db *DB) Update(table string, id string, record interface{}) bool {
 	return false
 }
 
-func (db *DB) Delete(table string, id string) bool {
+func Upsert[T Identifiable](db *DB, table string, record T) bool {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
 	data := file.Fetch()
-
 	records := data.Records(table)
 
 	for i, r := range records {
-		recordMap, ok := r.(map[string]interface{})
-
+		typedRecord, ok := r.(T)
 		if !ok {
-			log.Fatalf("Failed to assert record as map[string]interface{}")
+			continue
 		}
 
-		if recordMap["id"] == id {
-			records = append(records[:i], records[i+1:]...)
-
+		if typedRecord.GetId() == record.GetId() {
+			records[i] = record
 			data.Commit(table, records)
+			return true
+		}
+	}
 
+	records = append(records, record)
+	data.Commit(table, records)
+
+	return true
+}
+
+func Drop(db *DB, table string) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	data := file.Fetch()
+	data.Commit(table, []interface{}{})
+}
+
+func Delete[T Identifiable](db *DB, table string, id string) bool {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	data := file.Fetch()
+	records := data.Records(table)
+
+	for i, r := range records {
+		typedRecord, ok := r.(T)
+		if !ok {
+			continue
+		}
+
+		if typedRecord.GetId() == id {
+			records = append(records[:i], records[i+1:]...)
+			data.Commit(table, records)
 			return true
 		}
 	}
