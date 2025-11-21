@@ -89,9 +89,9 @@ func (sc *SecureCookie) ClearCookie(w http.ResponseWriter, name string) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Expires:  time.Unix(0, 0),
-		MaxAge:   -1,
-		Secure:   true,
+		Expires:  time.Unix(0, 0), // Fecha en el pasado
+		MaxAge:   -1,              // Invalida inmediatamente la cookie
+		Secure:   true,            // Opcionalmente, puede establecerse solo para HTTPS
 	}
 
 	http.SetCookie(w, cookie)
