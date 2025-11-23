@@ -45,39 +45,34 @@ func convertToType[T any](record interface{}) (T, error) {
 	return result, ErrInvalidRecord
 }
 
-func (db *DB) Select(table string) ([]interface{}, error) {
+func (db *DB) Select(table string) []interface{} {
 	if table == "" {
-		return nil, ErrEmptyTable
+		return []interface{}{}
 	}
 
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 
 	data := file.Fetch()
-	records := data.Records(table)
-
-	return records, nil
+	return data.Records(table)
 }
 
-func SelectTyped[T any](db *DB, table string) ([]T, error) {
-	records, err := db.Select(table)
-	if err != nil {
-		return nil, err
-	}
-
+func SelectTyped[T any](db *DB, table string) []T {
+	records := db.Select(table)
 	result := make([]T, 0, len(records))
+
 	for _, record := range records {
 		if converted, err := convertToType[T](record); err == nil {
 			result = append(result, converted)
 		}
 	}
 
-	return result, nil
+	return result
 }
 
-func (db *DB) SelectByID(table string, id string) (interface{}, error) {
+func (db *DB) SelectByID(table string, id string) (interface{}, bool) {
 	if table == "" {
-		return nil, ErrEmptyTable
+		return nil, false
 	}
 
 	db.mu.RLock()
@@ -93,59 +88,56 @@ func (db *DB) SelectByID(table string, id string) (interface{}, error) {
 		}
 
 		if recordMap["id"] == id {
-			return record, nil
+			return record, true
 		}
 	}
 
-	return nil, ErrRecordNotFound
+	return nil, false
 }
 
-func SelectByIDTyped[T any](db *DB, table string, id string) (T, error) {
-	var zero T
-
-	record, err := db.SelectByID(table, id)
-	if err != nil {
-		return zero, err
+func SelectByIDTyped[T any](db *DB, table string, id string) (*T, bool) {
+	record, found := db.SelectByID(table, id)
+	if !found {
+		return nil, false
 	}
 
-	return convertToType[T](record)
+	converted, err := convertToType[T](record)
+	if err != nil {
+		return nil, false
+	}
+
+	return &converted, true
 }
 
-func (db *DB) SelectWhere(table string, predicate func(interface{}) bool) ([]interface{}, error) {
-	records, err := db.Select(table)
-	if err != nil {
-		return nil, err
-	}
-
+func (db *DB) SelectWhere(table string, predicate func(interface{}) bool) []interface{} {
+	records := db.Select(table)
 	result := make([]interface{}, 0)
+
 	for _, record := range records {
 		if predicate(record) {
 			result = append(result, record)
 		}
 	}
 
-	return result, nil
+	return result
 }
 
-func SelectWhereTyped[T any](db *DB, table string, predicate func(T) bool) ([]T, error) {
-	records, err := SelectTyped[T](db, table)
-	if err != nil {
-		return nil, err
-	}
-
+func SelectWhereTyped[T any](db *DB, table string, predicate func(T) bool) []T {
+	records := SelectTyped[T](db, table)
 	result := make([]T, 0)
+
 	for _, record := range records {
 		if predicate(record) {
 			result = append(result, record)
 		}
 	}
 
-	return result, nil
+	return result
 }
 
-func (db *DB) Insert(table string, record interface{}) error {
+func (db *DB) Insert(table string, record interface{}) {
 	if table == "" {
-		return ErrEmptyTable
+		return
 	}
 
 	db.mu.Lock()
@@ -156,12 +148,11 @@ func (db *DB) Insert(table string, record interface{}) error {
 	records = append(records, record)
 
 	data.Commit(table, records)
-	return nil
 }
 
-func (db *DB) InsertMany(table string, records []interface{}) error {
+func (db *DB) InsertMany(table string, records []interface{}) {
 	if table == "" {
-		return ErrEmptyTable
+		return
 	}
 
 	db.mu.Lock()
@@ -169,24 +160,22 @@ func (db *DB) InsertMany(table string, records []interface{}) error {
 
 	data := file.Fetch()
 	existingRecords := data.Records(table)
-
 	existingRecords = append(existingRecords, records...)
 
 	data.Commit(table, existingRecords)
-	return nil
 }
 
-func InsertManyTyped[T any](db *DB, table string, records []T) error {
+func InsertManyTyped[T any](db *DB, table string, records []T) {
 	interfaceRecords := make([]interface{}, len(records))
 	for i, record := range records {
 		interfaceRecords[i] = record
 	}
-	return db.InsertMany(table, interfaceRecords)
+	db.InsertMany(table, interfaceRecords)
 }
 
-func (db *DB) Upsert(table string, id string, record interface{}) error {
+func (db *DB) Upsert(table string, id string, record interface{}) {
 	if table == "" {
-		return ErrEmptyTable
+		return
 	}
 
 	db.mu.Lock()
@@ -204,22 +193,21 @@ func (db *DB) Upsert(table string, id string, record interface{}) error {
 		if recordMap["id"] == id {
 			records[i] = record
 			data.Commit(table, records)
-			return nil
+			return
 		}
 	}
 
 	records = append(records, record)
 	data.Commit(table, records)
-	return nil
 }
 
-func UpsertTyped[T any](db *DB, table string, id string, record T) error {
-	return db.Upsert(table, id, record)
+func UpsertTyped[T any](db *DB, table string, id string, record T) {
+	db.Upsert(table, id, record)
 }
 
-func (db *DB) Update(table string, id string, record interface{}) error {
+func (db *DB) Update(table string, id string, record interface{}) bool {
 	if table == "" {
-		return ErrEmptyTable
+		return false
 	}
 
 	db.mu.Lock()
@@ -237,16 +225,16 @@ func (db *DB) Update(table string, id string, record interface{}) error {
 		if recordMap["id"] == id {
 			records[i] = record
 			data.Commit(table, records)
-			return nil
+			return true
 		}
 	}
 
-	return ErrRecordNotFound
+	return false
 }
 
-func (db *DB) UpsertMany(table string, records []interface{}) error {
+func (db *DB) UpsertMany(table string, records []interface{}) {
 	if table == "" {
-		return ErrEmptyTable
+		return
 	}
 
 	db.mu.Lock()
@@ -255,7 +243,6 @@ func (db *DB) UpsertMany(table string, records []interface{}) error {
 	data := file.Fetch()
 	existingRecords := data.Records(table)
 
-	// Crear un mapa para búsqueda rápida de registros existentes
 	recordMap := make(map[string]int)
 	for i, r := range existingRecords {
 		if rMap, ok := r.(map[string]interface{}); ok {
@@ -265,7 +252,6 @@ func (db *DB) UpsertMany(table string, records []interface{}) error {
 		}
 	}
 
-	// Procesar cada registro nuevo
 	for _, newRecord := range records {
 		newRecordMap, ok := newRecord.(map[string]interface{})
 		if !ok {
@@ -278,30 +264,27 @@ func (db *DB) UpsertMany(table string, records []interface{}) error {
 		}
 
 		if idx, exists := recordMap[id]; exists {
-			// Actualizar registro existente
 			existingRecords[idx] = newRecord
 		} else {
-			// Agregar nuevo registro
 			existingRecords = append(existingRecords, newRecord)
 			recordMap[id] = len(existingRecords) - 1
 		}
 	}
 
 	data.Commit(table, existingRecords)
-	return nil
 }
 
-func UpsertManyTyped[T any](db *DB, table string, records []T) error {
+func UpsertManyTyped[T any](db *DB, table string, records []T) {
 	interfaceRecords := make([]interface{}, len(records))
 	for i, record := range records {
 		interfaceRecords[i] = record
 	}
-	return db.UpsertMany(table, interfaceRecords)
+	db.UpsertMany(table, interfaceRecords)
 }
 
-func (db *DB) UpsertWhere(table string, predicate func(interface{}) bool, record interface{}, updater func(interface{}) interface{}) error {
+func (db *DB) UpsertWhere(table string, predicate func(interface{}) bool, record interface{}, updater func(interface{}) interface{}) {
 	if table == "" {
-		return ErrEmptyTable
+		return
 	}
 
 	db.mu.Lock()
@@ -312,20 +295,18 @@ func (db *DB) UpsertWhere(table string, predicate func(interface{}) bool, record
 
 	for i, r := range records {
 		if predicate(r) {
-			// Actualizar registro existente usando el updater
 			records[i] = updater(r)
 			data.Commit(table, records)
-			return nil
+			return
 		}
 	}
 
 	records = append(records, record)
 	data.Commit(table, records)
-	return nil
 }
 
-func UpsertWhereTyped[T any](db *DB, table string, predicate func(T) bool, record T, updater func(T) T) error {
-	return db.UpsertWhere(table,
+func UpsertWhereTyped[T any](db *DB, table string, predicate func(T) bool, record T, updater func(T) T) {
+	db.UpsertWhere(table,
 		func(r interface{}) bool {
 			if converted, err := convertToType[T](r); err == nil {
 				return predicate(converted)
@@ -341,9 +322,9 @@ func UpsertWhereTyped[T any](db *DB, table string, predicate func(T) bool, recor
 		})
 }
 
-func (db *DB) UpdateWhere(table string, predicate func(interface{}) bool, updater func(interface{}) interface{}) (int, error) {
+func (db *DB) UpdateWhere(table string, predicate func(interface{}) bool, updater func(interface{}) interface{}) int {
 	if table == "" {
-		return 0, ErrEmptyTable
+		return 0
 	}
 
 	db.mu.Lock()
@@ -364,10 +345,10 @@ func (db *DB) UpdateWhere(table string, predicate func(interface{}) bool, update
 		data.Commit(table, records)
 	}
 
-	return updated, nil
+	return updated
 }
 
-func UpdateWhereTyped[T any](db *DB, table string, predicate func(T) bool, updater func(T) T) (int, error) {
+func UpdateWhereTyped[T any](db *DB, table string, predicate func(T) bool, updater func(T) T) int {
 	return db.UpdateWhere(table,
 		func(record interface{}) bool {
 			if converted, err := convertToType[T](record); err == nil {
@@ -383,9 +364,9 @@ func UpdateWhereTyped[T any](db *DB, table string, predicate func(T) bool, updat
 		})
 }
 
-func (db *DB) Delete(table string, id string) error {
+func (db *DB) Delete(table string, id string) bool {
 	if table == "" {
-		return ErrEmptyTable
+		return false
 	}
 
 	db.mu.Lock()
@@ -403,16 +384,16 @@ func (db *DB) Delete(table string, id string) error {
 		if recordMap["id"] == id {
 			records = append(records[:i], records[i+1:]...)
 			data.Commit(table, records)
-			return nil
+			return true
 		}
 	}
 
-	return ErrRecordNotFound
+	return false
 }
 
-func (db *DB) DeleteWhere(table string, predicate func(interface{}) bool) (int, error) {
+func (db *DB) DeleteWhere(table string, predicate func(interface{}) bool) int {
 	if table == "" {
-		return 0, ErrEmptyTable
+		return 0
 	}
 
 	db.mu.Lock()
@@ -435,10 +416,10 @@ func (db *DB) DeleteWhere(table string, predicate func(interface{}) bool) (int, 
 		data.Commit(table, newRecords)
 	}
 
-	return deleted, nil
+	return deleted
 }
 
-func DeleteWhereTyped[T any](db *DB, table string, predicate func(T) bool) (int, error) {
+func DeleteWhereTyped[T any](db *DB, table string, predicate func(T) bool) int {
 	return db.DeleteWhere(table, func(record interface{}) bool {
 		if converted, err := convertToType[T](record); err == nil {
 			return predicate(converted)
@@ -447,23 +428,21 @@ func DeleteWhereTyped[T any](db *DB, table string, predicate func(T) bool) (int,
 	})
 }
 
-func (db *DB) Count(table string) (int, error) {
+func (db *DB) Count(table string) int {
 	if table == "" {
-		return 0, ErrEmptyTable
+		return 0
 	}
 
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 
 	data := file.Fetch()
-	records := data.Records(table)
-
-	return len(records), nil
+	return len(data.Records(table))
 }
 
-func (db *DB) Exists(table string, id string) (bool, error) {
+func (db *DB) Exists(table string, id string) bool {
 	if table == "" {
-		return false, ErrEmptyTable
+		return false
 	}
 
 	db.mu.RLock()
@@ -479,16 +458,16 @@ func (db *DB) Exists(table string, id string) (bool, error) {
 		}
 
 		if recordMap["id"] == id {
-			return true, nil
+			return true
 		}
 	}
 
-	return false, nil
+	return false
 }
 
-func (db *DB) Truncate(table string) error {
+func (db *DB) Truncate(table string) {
 	if table == "" {
-		return ErrEmptyTable
+		return
 	}
 
 	db.mu.Lock()
@@ -496,8 +475,6 @@ func (db *DB) Truncate(table string) error {
 
 	data := file.Fetch()
 	data.Commit(table, []interface{}{})
-
-	return nil
 }
 
 func (db *DB) Transaction(fn func(*DB) error) error {
@@ -507,30 +484,24 @@ func (db *DB) Transaction(fn func(*DB) error) error {
 	return fn(db)
 }
 
-func (db *DB) Map(table string, mapper func(interface{}) interface{}) ([]interface{}, error) {
-	records, err := db.Select(table)
-	if err != nil {
-		return nil, err
-	}
-
+func (db *DB) Map(table string, mapper func(interface{}) interface{}) []interface{} {
+	records := db.Select(table)
 	result := make([]interface{}, 0, len(records))
+
 	for _, record := range records {
 		result = append(result, mapper(record))
 	}
 
-	return result, nil
+	return result
 }
 
-func MapTyped[T any, R any](db *DB, table string, mapper func(T) R) ([]R, error) {
-	records, err := SelectTyped[T](db, table)
-	if err != nil {
-		return nil, err
-	}
-
+func MapTyped[T any, R any](db *DB, table string, mapper func(T) R) []R {
+	records := SelectTyped[T](db, table)
 	result := make([]R, 0, len(records))
+
 	for _, record := range records {
 		result = append(result, mapper(record))
 	}
 
-	return result, nil
+	return result
 }

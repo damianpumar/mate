@@ -51,67 +51,40 @@ func main() {
 		c.Response.Text(200, "Cookie deleted")
 	}))
 
-	// GET all users
 	server.Get("/", mate.LoggingMiddleware(func(c *mate.Context) {
-		data, err := db.Select("users")
-
-		if err != nil {
-			c.Error(500, err)
-			return
-		}
-
+		data := db.Select("users")
 		c.JSON(200, data)
 	}))
 
-	// GET all users (typed version)
 	server.Get("/users/typed", mate.LoggingMiddleware(func(c *mate.Context) {
-		users, err := database.SelectTyped[Example](db, "users")
-
-		if err != nil {
-			c.Error(500, err)
-			return
-		}
-
+		users := database.SelectTyped[Example](db, "users")
 		c.JSON(200, users)
 	}))
 
-	// GET user by ID
 	server.Get("/{id}", func(c *mate.Context) {
 		id := c.GetPathValue("id")
+		data, found := db.SelectByID("users", id)
 
-		data, err := db.SelectByID("users", id)
-
-		if err != nil {
-			if err == database.ErrRecordNotFound {
-				c.Error(404, err)
-				return
-			}
-			c.Error(500, err)
+		if !found {
+			c.Status(404)
 			return
 		}
 
 		c.JSON(200, data)
 	})
 
-	// GET user by ID (typed version)
 	server.Get("/users/typed/{id}", func(c *mate.Context) {
 		id := c.GetPathValue("id")
+		user, found := database.SelectByIDTyped[Example](db, "users", id)
 
-		user, err := database.SelectByIDTyped[Example](db, "users", id)
-
-		if err != nil {
-			if err == database.ErrRecordNotFound {
-				c.Error(404, err)
-				return
-			}
-			c.Error(500, err)
+		if !found {
+			c.Status(404)
 			return
 		}
 
 		c.JSON(200, user)
 	})
 
-	// POST create user
 	server.Post("/", func(c *mate.Context) {
 		data := Example{}
 
@@ -120,18 +93,12 @@ func main() {
 			return
 		}
 
-		if err := db.Insert("users", data); err != nil {
-			c.Error(500, err)
-			return
-		}
-
+		db.Insert("users", data)
 		c.JSON(201, data)
 	})
 
-	// PUT update user
 	server.Put("/{id}", func(c *mate.Context) {
 		id := c.GetPathValue("id")
-
 		data := Example{}
 
 		if err := c.BindBody(&data); err != nil {
@@ -139,87 +106,50 @@ func main() {
 			return
 		}
 
-		if err := db.Update("users", id, data); err != nil {
-			if err == database.ErrRecordNotFound {
-				c.Status(404)
-				return
-			}
-			c.Error(500, err)
+		if !db.Update("users", id, data) {
+			c.Status(404)
 			return
 		}
 
 		c.JSON(200, data)
 	})
 
-	// DELETE user
 	server.Delete("/{id}", func(c *mate.Context) {
 		id := c.GetPathValue("id")
 
-		if err := db.Delete("users", id); err != nil {
-			if err == database.ErrRecordNotFound {
-				c.Status(404)
-				return
-			}
-			c.Error(500, err)
+		if !db.Delete("users", id) {
+			c.Status(404)
 			return
 		}
 
 		c.Text(200, "Deleted")
 	})
 
-	// GET users with filter
 	server.Get("/users/filter", func(c *mate.Context) {
 		name := c.Request.Request.URL.Query().Get("name")
-
-		users, err := database.SelectWhereTyped(db, "users", func(u Example) bool {
+		users := database.SelectWhereTyped(db, "users", func(u Example) bool {
 			return u.Name == name
 		})
-
-		if err != nil {
-			c.Error(500, err)
-			return
-		}
 
 		c.JSON(200, users)
 	})
 
-	// GET count users
 	server.Get("/users/count", func(c *mate.Context) {
-		count, err := db.Count("users")
-
-		if err != nil {
-			c.Error(500, err)
-			return
-		}
-
+		count := db.Count("users")
 		c.JSON(200, map[string]int{"count": count})
 	})
 
-	// GET check if user exists
 	server.Get("/users/exists/{id}", func(c *mate.Context) {
 		id := c.GetPathValue("id")
-
-		exists, err := db.Exists("users", id)
-
-		if err != nil {
-			c.Error(500, err)
-			return
-		}
-
+		exists := db.Exists("users", id)
 		c.JSON(200, map[string]bool{"exists": exists})
 	})
 
-	// DELETE all users (truncate)
 	server.Delete("/users/truncate", func(c *mate.Context) {
-		if err := db.Truncate("users"); err != nil {
-			c.Error(500, err)
-			return
-		}
-
+		db.Truncate("users")
 		c.Text(200, "All users deleted")
 	})
 
-	// POST bulk insert users
 	server.Post("/users/bulk", func(c *mate.Context) {
 		var users []Example
 
@@ -228,20 +158,10 @@ func main() {
 			return
 		}
 
-		records := make([]interface{}, len(users))
-		for i, u := range users {
-			records[i] = u
-		}
-
-		if err := db.InsertMany("users", records); err != nil {
-			c.Error(500, err)
-			return
-		}
-
+		database.InsertManyTyped(db, "users", users)
 		c.JSON(201, users)
 	})
 
-	// PUT update multiple users by name
 	server.Put("/users/bulk-update", func(c *mate.Context) {
 		type BulkUpdate struct {
 			OldName string `json:"old_name"`
@@ -254,7 +174,7 @@ func main() {
 			return
 		}
 
-		updated, err := database.UpdateWhereTyped(db, "users",
+		updated := database.UpdateWhereTyped(db, "users",
 			func(u Example) bool {
 				return u.Name == update.OldName
 			},
@@ -263,29 +183,17 @@ func main() {
 				return u
 			})
 
-		if err != nil {
-			c.Error(500, err)
-			return
-		}
-
 		c.JSON(200, map[string]interface{}{
 			"updated": updated,
 			"message": "Users updated successfully",
 		})
 	})
 
-	// DELETE multiple users by name
 	server.Delete("/users/by-name/{name}", func(c *mate.Context) {
 		name := c.GetPathValue("name")
-
-		deleted, err := database.DeleteWhereTyped(db, "users", func(u Example) bool {
+		deleted := database.DeleteWhereTyped(db, "users", func(u Example) bool {
 			return u.Name == name
 		})
-
-		if err != nil {
-			c.Error(500, err)
-			return
-		}
 
 		c.JSON(200, map[string]interface{}{
 			"deleted": deleted,

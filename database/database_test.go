@@ -20,14 +20,9 @@ func TestDatabase(t *testing.T) {
 
 		inserted := Example{Id: "1", Name: "John Doe"}
 
-		if err := db.Insert("fake", inserted); err != nil {
-			t.Fatalf("Failed to insert record: %v", err)
-		}
+		db.Insert("fake", inserted)
 
-		records, err := db.Select("fake")
-		if err != nil {
-			t.Fatalf("Failed to select records: %v", err)
-		}
+		records := db.Select("fake")
 
 		if len(records) != 1 {
 			t.Fatalf("Expected 1 record, got %d", len(records))
@@ -45,14 +40,9 @@ func TestDatabase(t *testing.T) {
 
 		inserted := Example{Id: "1", Name: "John Doe"}
 
-		if err := db.Insert("fake", inserted); err != nil {
-			t.Fatalf("Failed to insert record: %v", err)
-		}
+		db.Insert("fake", inserted)
 
-		records, err := database.SelectTyped[Example](db, "fake")
-		if err != nil {
-			t.Fatalf("Failed to select records: %v", err)
-		}
+		records := database.SelectTyped[Example](db, "fake")
 
 		if len(records) != 1 {
 			t.Fatalf("Expected 1 record, got %d", len(records))
@@ -70,13 +60,11 @@ func TestDatabase(t *testing.T) {
 
 		inserted := Example{Id: "1", Name: "John Doe"}
 
-		if err := db.Insert("fake", inserted); err != nil {
-			t.Fatalf("Failed to insert record: %v", err)
-		}
+		db.Insert("fake", inserted)
 
-		record, err := db.SelectByID("fake", "1")
-		if err != nil {
-			t.Fatalf("Failed to select record by ID: %v", err)
+		record, found := db.SelectByID("fake", "1")
+		if !found {
+			t.Fatal("Expected to find record")
 		}
 
 		recordMap := record.(map[string]interface{})
@@ -91,13 +79,11 @@ func TestDatabase(t *testing.T) {
 
 		inserted := Example{Id: "1", Name: "John Doe"}
 
-		if err := db.Insert("fake", inserted); err != nil {
-			t.Fatalf("Failed to insert record: %v", err)
-		}
+		db.Insert("fake", inserted)
 
-		record, err := database.SelectByIDTyped[Example](db, "fake", "1")
-		if err != nil {
-			t.Fatalf("Failed to select record by ID: %v", err)
+		record, found := database.SelectByIDTyped[Example](db, "fake", "1")
+		if !found {
+			t.Fatal("Expected to find record")
 		}
 
 		if record.Id != inserted.Id || record.Name != inserted.Name {
@@ -105,12 +91,12 @@ func TestDatabase(t *testing.T) {
 		}
 	})
 
-	t.Run("should return error when record not found", func(t *testing.T) {
+	t.Run("should return false when record not found", func(t *testing.T) {
 		defer os.RemoveAll("database")
 
-		_, err := db.SelectByID("fake", "nonexistent")
-		if err != database.ErrRecordNotFound {
-			t.Errorf("Expected ErrRecordNotFound, got %v", err)
+		_, found := db.SelectByID("fake", "nonexistent")
+		if found {
+			t.Error("Expected record not to be found")
 		}
 	})
 
@@ -119,20 +105,15 @@ func TestDatabase(t *testing.T) {
 
 		inserted := Example{Id: "1", Name: "John Doe"}
 
-		if err := db.Insert("fake", inserted); err != nil {
-			t.Fatalf("Failed to insert record: %v", err)
-		}
+		db.Insert("fake", inserted)
 
 		updated := Example{Id: "1", Name: "Jane Doe"}
 
-		if err := db.Update("fake", inserted.Id, updated); err != nil {
-			t.Fatalf("Failed to update record: %v", err)
+		if !db.Update("fake", inserted.Id, updated) {
+			t.Fatal("Failed to update record")
 		}
 
-		records, err := db.Select("fake")
-		if err != nil {
-			t.Fatalf("Failed to select records: %v", err)
-		}
+		records := db.Select("fake")
 
 		updatedRecord := records[0].(map[string]interface{})
 
@@ -151,12 +132,10 @@ func TestDatabase(t *testing.T) {
 		}
 
 		for _, ex := range examples {
-			if err := db.Insert("fake", ex); err != nil {
-				t.Fatalf("Failed to insert record: %v", err)
-			}
+			db.Insert("fake", ex)
 		}
 
-		updated, err := database.UpdateWhereTyped(db, "fake",
+		updated := database.UpdateWhereTyped(db, "fake",
 			func(e Example) bool {
 				return e.Name[0] == 'J'
 			},
@@ -165,15 +144,11 @@ func TestDatabase(t *testing.T) {
 				return e
 			})
 
-		if err != nil {
-			t.Fatalf("Failed to update records: %v", err)
-		}
-
 		if updated != 2 {
 			t.Errorf("Expected 2 records updated, got %d", updated)
 		}
 
-		records, _ := database.SelectTyped[Example](db, "fake")
+		records := database.SelectTyped[Example](db, "fake")
 
 		for _, r := range records {
 			if r.Name == "John" || r.Name == "Jane" {
@@ -187,18 +162,13 @@ func TestDatabase(t *testing.T) {
 
 		inserted := Example{Id: "1", Name: "John Doe"}
 
-		if err := db.Insert("fake", inserted); err != nil {
-			t.Fatalf("Failed to insert record: %v", err)
+		db.Insert("fake", inserted)
+
+		if !db.Delete("fake", inserted.Id) {
+			t.Fatal("Failed to delete record")
 		}
 
-		if err := db.Delete("fake", inserted.Id); err != nil {
-			t.Fatalf("Failed to delete record: %v", err)
-		}
-
-		records, err := db.Select("fake")
-		if err != nil {
-			t.Fatalf("Failed to select records: %v", err)
-		}
+		records := db.Select("fake")
 
 		if len(records) != 0 {
 			t.Errorf("Expected 0 records, got %d", len(records))
@@ -215,24 +185,18 @@ func TestDatabase(t *testing.T) {
 		}
 
 		for _, ex := range examples {
-			if err := db.Insert("fake", ex); err != nil {
-				t.Fatalf("Failed to insert record: %v", err)
-			}
+			db.Insert("fake", ex)
 		}
 
-		deleted, err := database.DeleteWhereTyped(db, "fake", func(e Example) bool {
+		deleted := database.DeleteWhereTyped(db, "fake", func(e Example) bool {
 			return e.Name[0] == 'J'
 		})
-
-		if err != nil {
-			t.Fatalf("Failed to delete records: %v", err)
-		}
 
 		if deleted != 2 {
 			t.Errorf("Expected 2 records deleted, got %d", deleted)
 		}
 
-		records, _ := database.SelectTyped[Example](db, "fake")
+		records := database.SelectTyped[Example](db, "fake")
 
 		if len(records) != 1 {
 			t.Errorf("Expected 1 record remaining, got %d", len(records))
@@ -252,15 +216,10 @@ func TestDatabase(t *testing.T) {
 		}
 
 		for _, ex := range examples {
-			if err := db.Insert("fake", ex); err != nil {
-				t.Fatalf("Failed to insert record: %v", err)
-			}
+			db.Insert("fake", ex)
 		}
 
-		count, err := db.Count("fake")
-		if err != nil {
-			t.Fatalf("Failed to count records: %v", err)
-		}
+		count := db.Count("fake")
 
 		if count != 2 {
 			t.Errorf("Expected 2 records, got %d", count)
@@ -272,23 +231,15 @@ func TestDatabase(t *testing.T) {
 
 		inserted := Example{Id: "1", Name: "John Doe"}
 
-		if err := db.Insert("fake", inserted); err != nil {
-			t.Fatalf("Failed to insert record: %v", err)
-		}
+		db.Insert("fake", inserted)
 
-		exists, err := db.Exists("fake", "1")
-		if err != nil {
-			t.Fatalf("Failed to check existence: %v", err)
-		}
+		exists := db.Exists("fake", "1")
 
 		if !exists {
 			t.Error("Expected record to exist")
 		}
 
-		exists, err = db.Exists("fake", "999")
-		if err != nil {
-			t.Fatalf("Failed to check existence: %v", err)
-		}
+		exists = db.Exists("fake", "999")
 
 		if exists {
 			t.Error("Expected record to not exist")
@@ -304,16 +255,12 @@ func TestDatabase(t *testing.T) {
 		}
 
 		for _, ex := range examples {
-			if err := db.Insert("fake", ex); err != nil {
-				t.Fatalf("Failed to insert record: %v", err)
-			}
+			db.Insert("fake", ex)
 		}
 
-		if err := db.Truncate("fake"); err != nil {
-			t.Fatalf("Failed to truncate table: %v", err)
-		}
+		db.Truncate("fake")
 
-		count, _ := db.Count("fake")
+		count := db.Count("fake")
 		if count != 0 {
 			t.Errorf("Expected 0 records after truncate, got %d", count)
 		}
@@ -328,11 +275,9 @@ func TestDatabase(t *testing.T) {
 			Example{Id: "3", Name: "Bob"},
 		}
 
-		if err := db.InsertMany("fake", examples); err != nil {
-			t.Fatalf("Failed to insert many records: %v", err)
-		}
+		db.InsertMany("fake", examples)
 
-		count, _ := db.Count("fake")
+		count := db.Count("fake")
 		if count != 3 {
 			t.Errorf("Expected 3 records, got %d", count)
 		}
@@ -348,28 +293,24 @@ func TestDatabase(t *testing.T) {
 		}
 
 		for _, ex := range examples {
-			if err := db.Insert("fake", ex); err != nil {
-				t.Fatalf("Failed to insert record: %v", err)
-			}
+			db.Insert("fake", ex)
 		}
 
-		results, err := database.SelectWhereTyped(db, "fake", func(e Example) bool {
+		results := database.SelectWhereTyped(db, "fake", func(e Example) bool {
 			return e.Name[0] == 'J'
 		})
-
-		if err != nil {
-			t.Fatalf("Failed to select where: %v", err)
-		}
 
 		if len(results) != 2 {
 			t.Errorf("Expected 2 records, got %d", len(results))
 		}
 	})
 
-	t.Run("should return error for empty table name", func(t *testing.T) {
-		err := db.Insert("", Example{Id: "1", Name: "Test"})
-		if err != database.ErrEmptyTable {
-			t.Errorf("Expected ErrEmptyTable, got %v", err)
+	t.Run("should handle empty table name gracefully", func(t *testing.T) {
+		db.Insert("", Example{Id: "1", Name: "Test"})
+
+		records := db.Select("")
+		if len(records) != 0 {
+			t.Error("Expected empty result for empty table name")
 		}
 	})
 }
