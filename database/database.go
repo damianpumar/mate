@@ -18,10 +18,6 @@ type DB struct {
 	mu sync.RWMutex
 }
 
-type Identifiable interface {
-	GetID() string
-}
-
 func Connect() *DB {
 	return &DB{
 		mu: sync.RWMutex{},
@@ -188,6 +184,39 @@ func InsertManyTyped[T any](db *DB, table string, records []T) error {
 	return db.InsertMany(table, interfaceRecords)
 }
 
+func (db *DB) Upsert(table string, id string, record interface{}) error {
+	if table == "" {
+		return ErrEmptyTable
+	}
+
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	data := file.Fetch()
+	records := data.Records(table)
+
+	for i, r := range records {
+		recordMap, ok := r.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		if recordMap["id"] == id {
+			records[i] = record
+			data.Commit(table, records)
+			return nil
+		}
+	}
+
+	records = append(records, record)
+	data.Commit(table, records)
+	return nil
+}
+
+func UpsertTyped[T any](db *DB, table string, id string, record T) error {
+	return db.Upsert(table, id, record)
+}
+
 func (db *DB) Update(table string, id string, record interface{}) error {
 	if table == "" {
 		return ErrEmptyTable
@@ -213,6 +242,103 @@ func (db *DB) Update(table string, id string, record interface{}) error {
 	}
 
 	return ErrRecordNotFound
+}
+
+func (db *DB) UpsertMany(table string, records []interface{}) error {
+	if table == "" {
+		return ErrEmptyTable
+	}
+
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	data := file.Fetch()
+	existingRecords := data.Records(table)
+
+	// Crear un mapa para búsqueda rápida de registros existentes
+	recordMap := make(map[string]int)
+	for i, r := range existingRecords {
+		if rMap, ok := r.(map[string]interface{}); ok {
+			if id, ok := rMap["id"].(string); ok {
+				recordMap[id] = i
+			}
+		}
+	}
+
+	// Procesar cada registro nuevo
+	for _, newRecord := range records {
+		newRecordMap, ok := newRecord.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		id, ok := newRecordMap["id"].(string)
+		if !ok {
+			continue
+		}
+
+		if idx, exists := recordMap[id]; exists {
+			// Actualizar registro existente
+			existingRecords[idx] = newRecord
+		} else {
+			// Agregar nuevo registro
+			existingRecords = append(existingRecords, newRecord)
+			recordMap[id] = len(existingRecords) - 1
+		}
+	}
+
+	data.Commit(table, existingRecords)
+	return nil
+}
+
+func UpsertManyTyped[T any](db *DB, table string, records []T) error {
+	interfaceRecords := make([]interface{}, len(records))
+	for i, record := range records {
+		interfaceRecords[i] = record
+	}
+	return db.UpsertMany(table, interfaceRecords)
+}
+
+func (db *DB) UpsertWhere(table string, predicate func(interface{}) bool, record interface{}, updater func(interface{}) interface{}) error {
+	if table == "" {
+		return ErrEmptyTable
+	}
+
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	data := file.Fetch()
+	records := data.Records(table)
+
+	for i, r := range records {
+		if predicate(r) {
+			// Actualizar registro existente usando el updater
+			records[i] = updater(r)
+			data.Commit(table, records)
+			return nil
+		}
+	}
+
+	records = append(records, record)
+	data.Commit(table, records)
+	return nil
+}
+
+func UpsertWhereTyped[T any](db *DB, table string, predicate func(T) bool, record T, updater func(T) T) error {
+	return db.UpsertWhere(table,
+		func(r interface{}) bool {
+			if converted, err := convertToType[T](r); err == nil {
+				return predicate(converted)
+			}
+			return false
+		},
+		record,
+		func(r interface{}) interface{} {
+			if converted, err := convertToType[T](r); err == nil {
+				return updater(converted)
+			}
+			return r
+		})
 }
 
 func (db *DB) UpdateWhere(table string, predicate func(interface{}) bool, updater func(interface{}) interface{}) (int, error) {
